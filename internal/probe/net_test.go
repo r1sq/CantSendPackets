@@ -230,13 +230,18 @@ func newFakeProxy(t *testing.T, connectStatus int, plain http.HandlerFunc) (*fak
 			return
 		}
 		defer upstream.Close()
-		w.WriteHeader(http.StatusOK)
-		client, _, err := w.(http.Hijacker).Hijack()
+		// Take the connection over before answering, and write the answer by
+		// hand: going through the ResponseWriter first can leave the response
+		// and the client's first tunnel bytes in buffers the hijack bypasses.
+		client, buffered, err := w.(http.Hijacker).Hijack()
 		if err != nil {
 			return
 		}
 		defer client.Close()
-		go io.Copy(upstream, client)
+		if _, err := client.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n")); err != nil {
+			return
+		}
+		go io.Copy(upstream, buffered) // includes anything already read past the request
 		io.Copy(client, upstream)
 	}))
 	t.Cleanup(p.Close)
