@@ -1,3 +1,5 @@
+//go:build windows || linux
+
 // Command cspcheck runs the same checks as the GUI and prints JSON, for diagnosing the
 // tool itself or using it over a remote shell, where there's no desktop to show a
 // window on. Text appears as the message keys and arguments the GUI translates (see
@@ -32,11 +34,15 @@ func main() {
 	index := flag.Uint("adapter", 0, "adapter index (default: the best one)")
 	watch := flag.Duration("watch", 20*time.Second, "how long to run the connectivity monitor")
 	checks := flag.String("checks", "monitor,loop,dhcp", "comma-separated checks to run")
-	dhcpSocket := flag.Bool("dhcp-socket", false, "use a plain socket for the DHCP check even if Npcap is available")
+	dhcpSocket := flag.Bool("dhcp-socket", false, "use a plain socket for the DHCP check even if capture is available")
+	noCapture := flag.Bool("no-capture", false, "run the loop and DHCP checks as without Npcap or root, to compare")
 	serve := flag.Duration("serve", 0, "announce this instance and accept speed tests for this long, instead of the checks")
 	speedTest := flag.Bool("speedtest", false, "with -serve: run a speed test against the first instance found")
 	speedTo := flag.String("speedtest-to", "", "run a speed test against host:port and exit")
 	flag.Parse()
+	if *noCapture {
+		diag.DisableCapture()
+	}
 
 	switch {
 	case *speedTo != "":
@@ -64,7 +70,7 @@ func main() {
 
 	want := strings.Split(*checks, ",")
 	ctx := context.Background()
-	out := map[string]any{"npcap": diag.Npcap(), "adapters": list, "selected": selected.Index}
+	out := map[string]any{"capture": diag.Capture(), "adapters": list, "selected": selected.Index}
 	if slices.Contains(want, "dhcp") {
 		if *dhcpSocket {
 			out["dhcp"] = diag.RunDHCPSocket(ctx, selected)

@@ -18,6 +18,20 @@ already on `main` (`make tag`), so not every version has to be released.
 
 Before 1.0.0, breaking changes bump the minor version instead of the major one.
 
+## [0.2.0] - 2026-11-12
+
+### Added
+- `cspcheck` for Linux (amd64 and arm64): connectivity, loop and DHCP checks, discovery and the
+  speed test endpoint, with raw capture through AF_PACKET when run as root or with
+  CAP_NET_RAW. See `docs/linux.md`.
+- `cspcheck -no-capture`, to run the checks as without Npcap or root.
+- `make netlab`: the Linux checks against a simulated network with a rogue DHCP server and a real
+  loop, run in CI.
+
+### Changed
+- `cspcheck`'s JSON reports capture as `"capture"` instead of `"npcap"`, since on Linux it isn't
+  Npcap.
+
 ## [0.1.2] - 2026-11-12
 
 ### Fixed

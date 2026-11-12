@@ -24,6 +24,7 @@ const (
 	SourcePAC     Source = "pac"
 	SourceManual  Source = "manual"
 	SourceWinHTTP Source = "winhttp" // machine-wide, set with netsh winhttp
+	SourceEnv     Source = "env"     // http_proxy and friends, on Linux
 
 	// Set in this app's own settings, which override everything above.
 	SourceOverrideDirect Source = "overrideDirect"
@@ -58,6 +59,8 @@ type Settings struct {
 	ManualBypass  string
 	WinHTTP       string
 	WinHTTPBypass string
+	Env           string // from http_proxy/https_proxy, in ParseList's format
+	EnvBypass     string // from no_proxy
 	Override      Override
 }
 
@@ -156,6 +159,9 @@ func Resolve(s Settings, d Discoverer, urls []string) Result {
 		}
 		if s.WinHTTP != "" {
 			return fixed(s.WinHTTP, s.WinHTTPBypass, SourceWinHTTP)
+		}
+		if s.Env != "" {
+			return fixed(s.Env, s.EnvBypass, SourceEnv)
 		}
 		// Nothing configured. Look anyway, since a network offering WPAD to a
 		// machine with auto-detect off is a useful finding in itself.
@@ -286,7 +292,7 @@ func LogonPolicy(source Source, host string, trusted []string) LogonLevel {
 		}
 	}
 	switch source {
-	case SourceManual, SourcePAC, SourceWinHTTP, SourceOverrideManual, SourceOverridePAC:
+	case SourceManual, SourcePAC, SourceWinHTTP, SourceEnv, SourceOverrideManual, SourceOverridePAC:
 		return LogonAlways
 	case SourceWPAD:
 		return LogonIntranet

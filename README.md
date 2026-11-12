@@ -35,6 +35,9 @@ can [update itself](docs/updates.md).
 Windows 10 or 11 with WebView2 (included in Windows 11 and current Windows 10). The files aren't
 code-signed, so SmartScreen warns on first start: *More info*, then *Run anyway*.
 
+On Linux there's `cspcheck`, the same checks without a window, which also makes a good permanent
+speed test endpoint: see [Linux](docs/linux.md).
+
 [Npcap](https://npcap.com/#download) is optional and makes the loop and DHCP checks stronger.
 Install it yourself; its licence doesn't allow bundling it.
 
@@ -45,6 +48,7 @@ Install it yourself; its licence doesn't allow bundling it.
 - [Proxies](docs/proxies.md): detection, and when the Windows login is used
 - [Speed test](docs/speed-test.md): discovery, firewall, and who can start a test
 - [Updates](docs/updates.md): how releases are signed and checked
+- [Linux](docs/linux.md): `cspcheck` on Linux, permissions, and a speed test endpoint as a service
 - [Changelog](CHANGELOG.md)
 - [Building and contributing](CONTRIBUTING.md)
 

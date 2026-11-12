@@ -3,12 +3,12 @@ FLAGS := -trimpath -ldflags "-s -w"
 GUI   := -trimpath -tags desktop,production -ldflags "-s -w -H windowsgui"
 export CGO_ENABLED := 0
 
-.PHONY: all test windows arm64 preview screenshots resources release tag
-all: test windows
+.PHONY: all test windows arm64 linux netlab preview screenshots resources release tag
+all: test windows linux
 
 test:
-	go vet ./internal/... ./dev/...
-	GOOS=windows go vet -tags desktop,production . ./cmd/... ./internal/...
+	GOOS=linux go vet ./cmd/... ./internal/... ./dev/...
+	GOOS=windows go vet -tags desktop,production . ./cmd/... ./internal/... ./dev/...
 	go test ./internal/...
 
 windows:
@@ -17,6 +17,16 @@ windows:
 
 arm64:
 	GOOS=windows GOARCH=arm64 go build $(GUI) -o build/CantSendPackets-arm64.exe .
+
+# cspcheck for Linux: static, so one file runs on any distribution.
+linux:
+	GOOS=linux GOARCH=amd64 go build $(FLAGS) -o build/cspcheck-linux-amd64 ./cmd/cspcheck
+	GOOS=linux GOARCH=arm64 go build $(FLAGS) -o build/cspcheck-linux-arm64 ./cmd/cspcheck
+
+# The Linux checks against a simulated network in namespaces: rogue DHCP, a real
+# loop, storms, discovery and a speed test. Needs Linux with user namespaces.
+netlab:
+	dev/netlab/netlab.sh
 
 # The version the source is at. Every change bumps it; see CHANGELOG.md.
 SOURCE_VERSION := v$(shell cat VERSION)
@@ -33,6 +43,8 @@ release:
 	GOOS=windows GOARCH=amd64 go build $(RELEASE_GUI) -o $(OUT)/CantSendPackets-windows-amd64.exe .
 	GOOS=windows GOARCH=arm64 go build $(RELEASE_GUI) -o $(OUT)/CantSendPackets-windows-arm64.exe .
 	GOOS=windows GOARCH=amd64 go build $(RELEASE_CLI) -o $(OUT)/cspcheck-windows-amd64.exe ./cmd/cspcheck
+	GOOS=linux GOARCH=amd64 go build $(RELEASE_CLI) -o $(OUT)/cspcheck-linux-amd64 ./cmd/cspcheck
+	GOOS=linux GOARCH=arm64 go build $(RELEASE_CLI) -o $(OUT)/cspcheck-linux-arm64 ./cmd/cspcheck
 	go run ./dev/release sign $(VERSION) $(OUT)
 
 # Serves the UI with mock data; prints the URL. Scenarios: see dev/preview/main.go.

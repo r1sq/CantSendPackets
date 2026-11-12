@@ -19,9 +19,16 @@ jobs:
         with:
           go-version-file: go.mod
       - run: make test
-      - run: make windows arm64
+      - run: make windows arm64 linux
+      - name: Linux checks against a simulated network
+        # Ubuntu blocks unprivileged user namespaces through AppArmor; the lab
+        # needs them, and the runner is a throwaway VM.
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          make netlab
       - name: Look for known vulnerabilities
-        # Built for the runner; GOOS=windows only selects what gets analysed.
+        # Built for the runner; GOOS only selects what gets analysed.
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
           GOOS=windows "$(go env GOPATH)/bin/govulncheck" -tags desktop,production ./...
+          GOOS=linux "$(go env GOPATH)/bin/govulncheck" ./cmd/... ./internal/...

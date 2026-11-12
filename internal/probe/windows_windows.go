@@ -1,6 +1,7 @@
 package probe
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -143,10 +144,10 @@ func Counters(ifIndex uint32) (nonUnicast, broadcastOctets uint64, err error) {
 	return row.InNUcastPkts, row.InBroadcastOctets, nil
 }
 
-// WebTestWinHTTP is WebTest for a proxy that wants a login, which needs Windows'
+// WebTestLogin is WebTest for a proxy that wants a login, which needs Windows'
 // own HTTP stack to speak NTLM and Kerberos with the user's credentials. Unlike
 // WebTest it can't bind a source address, so it follows the routing table.
-func WebTestWinHTTP(check WebCheck, proxyHost string, level proxy.LogonLevel, user, password string, timeout time.Duration) (time.Duration, error) {
+func WebTestLogin(_ context.Context, _ netip.Addr, check WebCheck, proxyHost string, level proxy.LogonLevel, user, password string, timeout time.Duration) (time.Duration, error) {
 	res, err := proxy.Fetch(proxy.FetchOptions{
 		URL: check.URL, ProxyHost: proxyHost, Level: level, User: user, Password: password, Timeout: timeout,
 	})

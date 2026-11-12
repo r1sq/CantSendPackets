@@ -50,6 +50,10 @@ func NewSocketTransport(cfg SocketConfig) (*SocketTransport, error) {
 	}}
 
 	primary, err := lc.ListenPacket(context.Background(), "udp4", netip.AddrPortFrom(cfg.BindIP, uint16(cfg.ClientPort)).String())
+	if errors.Is(err, syscall.EACCES) {
+		// Linux reserves ports below 1024 for root and CAP_NET_BIND_SERVICE.
+		return nil, verdict.Err("err.dhcp.bindDenied", "port", cfg.ClientPort)
+	}
 	if err != nil {
 		return nil, verdict.Err("err.dhcp.bind", "port", cfg.ClientPort, "ip", cfg.BindIP, "detail", err.Error())
 	}
