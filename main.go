@@ -7,6 +7,10 @@ import (
 	"embed"
 	"io/fs"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -58,7 +62,23 @@ func main() {
 		},
 	}
 	platformOptions(opts)
+	exitOnSignal()
 	if err := wails.Run(opts); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// exitOnSignal makes sure SIGTERM and SIGINT end the program. Wails catches them
+// and asks the GUI toolkit to quit, but on Linux that request is lost if it comes
+// before GTK's main loop runs (seen on a slow CI machine), and the process then
+// never exits. Wails gets a moment to shut down cleanly; then this ends it.
+// Settings are saved as they change, so nothing waits on a clean exit.
+func exitOnSignal() {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		<-ch
+		time.Sleep(3 * time.Second)
+		os.Exit(0)
+	}()
 }

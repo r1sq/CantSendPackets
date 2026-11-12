@@ -31,6 +31,10 @@ Before 1.0.0, breaking changes bump the minor version instead of the major one.
 - `make netlab`: the Linux checks against a simulated network with a rogue DHCP server and a real
   loop, run in CI.
 
+### Fixed
+- SIGTERM and SIGINT always end the app. On Linux, Wails' own handling could lose the quit
+  request if it came before the window was up, leaving the process running.
+
 ### Changed
 - `cspcheck`'s JSON reports capture as `"capture"` instead of `"npcap"`, since on Linux it isn't
   Npcap.

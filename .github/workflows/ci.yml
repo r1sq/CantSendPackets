@@ -11,6 +11,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -28,7 +29,7 @@ jobs:
           CGO_ENABLED=1 go vet -tags desktop,production,webkit2_41 .
           make linux-gui
           status=0
-          dbus-run-session -- xvfb-run -a timeout 8 build/CantSendPackets-linux-amd64 || status=$?
+          dbus-run-session -- xvfb-run -a timeout -k 10 8 build/CantSendPackets-linux-amd64 || status=$?
           test "$status" -eq 124
       - name: Linux checks against a simulated network
         # Ubuntu blocks unprivileged user namespaces through AppArmor; the lab
