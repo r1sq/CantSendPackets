@@ -18,6 +18,12 @@ already on `main` (`make tag`), so not every version has to be released.
 
 Before 1.0.0, breaking changes bump the minor version instead of the major one.
 
+## [0.1.1] - 2026-11-12
+
+### Changed
+- Builds run on Ubuntu 24.04 instead of whatever `ubuntu-latest` currently is, so a release
+  doesn't change its build environment unannounced.
+
 ## [0.1.0] - 2026-11-12
 
 First versioned state.
