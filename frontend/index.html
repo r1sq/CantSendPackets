@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>CantSendPackets</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="stylesheet" href="style.css">
+  <script src="i18n.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="titlebar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span>CantSendPackets</div>
+    <div class="adapter-picker no-drag">
+      <label for="adapter" class="sr-only" data-i18n="ui.adapter"></label>
+      <select id="adapter"></select>
+      <button id="refresh" class="icon-btn" data-i18n-label="ui.refresh"></button>
+      <button id="settings" class="icon-btn" data-i18n-label="ui.settings"></button>
+    </div>
+    <div class="title-right no-drag">
+      <div class="lang-switch" role="group" data-i18n-label="ui.language">
+        <button id="lang-de" class="lang-btn">DE</button>
+        <button id="lang-en" class="lang-btn">EN</button>
+      </div>
+      <button id="win-min" class="win-btn" data-i18n-label="ui.minimize"></button>
+      <button id="win-max" class="win-btn" data-i18n-label="ui.maximize"></button>
+      <button id="win-close" class="win-btn close" data-i18n-label="ui.close"></button>
+    </div>
+  </header>
+
+  <section class="hero" id="hero" data-verdict="unknown">
+    <div class="hero-main">
+      <span class="hero-icon" id="hero-icon"></span>
+      <div class="hero-text">
+        <h1 id="hero-headline"></h1>
+        <p id="hero-detail"></p>
+      </div>
+      <button id="hero-action" class="run-btn no-drag" data-i18n="ui.login" hidden></button>
+    </div>
+    <ol class="path" id="path" data-i18n-label="ui.path"></ol>
+  </section>
+
+  <dl class="facts" id="facts"></dl>
+
+  <main class="content">
+    <section class="card connectivity" aria-labelledby="conn-title">
+      <div class="card-head">
+        <h2 id="conn-title" data-i18n="ui.connectivity"></h2>
+        <div class="col-heads" aria-hidden="true"><span data-i18n="col.now"></span><span data-i18n="col.avg"></span><span data-i18n="col.loss"></span></div>
+      </div>
+      <div class="targets" id="targets"></div>
+      <p class="conn-note" id="conn-note" hidden></p>
+    </section>
+
+    <div class="checks">
+      <section class="card check" id="check-loop" aria-labelledby="loop-title"></section>
+      <section class="card check" id="check-dhcp" aria-labelledby="dhcp-title"></section>
+      <section class="card check" id="speed-card" aria-labelledby="speed-title"></section>
+    </div>
+  </main>
+
+  <footer class="statusbar" id="statusbar"></footer>
+  <div class="tooltip" id="tooltip" role="status" hidden></div>
+  <dialog id="settings-dialog" class="dialog"></dialog>
+  <dialog id="login-dialog" class="dialog"></dialog>
+</body>
+</html>
