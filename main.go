@@ -52,6 +52,12 @@ func main() {
 		OnShutdown:       app.shutdown,
 		Bind:             []any{app},
 		Windows:          &wailswin.Options{Theme: wailswin.Dark},
+		// One window per Windows session: starting it again brings that one
+		// forward. Other users on the same PC (a terminal server) get their own.
+		SingleInstanceLock: &options.SingleInstanceLock{
+			UniqueId:               "CantSendPackets-5d3f8c2a-7b14-4e9b-a0c6-1f2e8d9b4c71",
+			OnSecondInstanceLaunch: app.onSecondInstance,
+		},
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -59,8 +65,9 @@ func main() {
 }
 
 // waitForPredecessor lets the copy that just installed an update finish quitting, so
-// this one gets the speed test port and doesn't briefly run alongside it. It starts
-// regardless if that takes too long.
+// this one gets the speed test port and the single-instance lock. It starts
+// regardless if that takes too long, though while the old copy still holds the lock
+// this one then only brings its window forward.
 func waitForPredecessor() {
 	if len(os.Args) != 3 || os.Args[1] != waitPIDFlag {
 		return
@@ -74,5 +81,5 @@ func waitForPredecessor() {
 		return // already gone
 	}
 	defer windows.CloseHandle(h)
-	windows.WaitForSingleObject(h, 8000)
+	windows.WaitForSingleObject(h, 30000)
 }

@@ -65,6 +65,23 @@ func TestTableIgnoresItself(t *testing.T) {
 	}
 }
 
+func TestTableIgnoresOtherInstancesOnThisPC(t *testing.T) {
+	tb := NewTable(idA)
+	now := time.Now()
+	if changed, _ := tb.Observe(Hello{ID: idB, Name: "PC-1", Proto: 1}, ipA, now); !changed {
+		t.Fatal("a peer heard before its address was known as ours should be listed")
+	}
+	if !tb.SetOwn([]netip.Addr{ipA}) || len(tb.List()) != 0 {
+		t.Fatal("learning the address is ours should drop the instance on it")
+	}
+	if changed, reply := tb.Observe(Hello{ID: idB, Name: "PC-1", Proto: 1}, ipA, now); changed || reply {
+		t.Error("a second window on this PC isn't a peer, and needs no reply")
+	}
+	if changed, _ := tb.Observe(Hello{ID: idB, Name: "PC-2", Proto: 1}, netip.MustParseAddr("192.168.1.11"), now); !changed {
+		t.Error("other PCs must still be listed")
+	}
+}
+
 func TestTableTracksChanges(t *testing.T) {
 	tb := NewTable(idA)
 	h := Hello{ID: idB, Name: "B", Port: 1, Proto: ProtocolVersion}

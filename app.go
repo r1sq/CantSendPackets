@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/r1sq/CantSendPackets/internal/adapter"
@@ -158,6 +159,16 @@ func (a *App) RunDHCPCheck(index uint32) (dhcp.Report, error) {
 // OpenNpcapPage opens Npcap's download page. URLs are fixed here rather than taken
 // from the frontend, so the page can't be made to open anything else.
 func (a *App) OpenNpcapPage() { runtime.BrowserOpenURL(a.ctx, npcapURL) }
+
+// onSecondInstance brings this window forward when the app is started again in
+// the same Windows session, instead of a second copy running alongside.
+func (a *App) onSecondInstance(options.SecondInstanceData) {
+	if a.ctx == nil {
+		return
+	}
+	runtime.WindowUnminimise(a.ctx)
+	runtime.Show(a.ctx)
+}
 
 // OpenRepoPage opens the project's GitHub page.
 func (a *App) OpenRepoPage() { runtime.BrowserOpenURL(a.ctx, repoURL) }
@@ -504,6 +515,9 @@ func (a *App) ProbePeer(address string) verdict.Msg {
 	ip, err := netip.ParseAddr(address)
 	if err != nil || !ip.Is4() {
 		return verdict.M("err.peer.badAddress")
+	}
+	if diag.IsOwnAddress(ip) {
+		return verdict.M("err.peer.thisPC")
 	}
 	a.mu.Lock()
 	svc := a.peers

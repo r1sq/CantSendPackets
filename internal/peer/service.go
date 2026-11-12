@@ -169,11 +169,22 @@ func (s *Service) announce() {
 			delete(s.conns, ip)
 		}
 	}
+	own := make([]netip.Addr, 0, len(locals))
+	for _, l := range locals {
+		own = append(own, l.IP)
+	}
+	var changedList []Peer
+	if s.table.SetOwn(own) {
+		changedList = s.table.List()
+	}
 	conns := make(map[netip.Addr]net.PacketConn, len(s.conns))
 	for ip, c := range s.conns {
 		conns[ip] = c
 	}
 	s.mu.Unlock()
+	if changedList != nil {
+		s.notify(changedList)
+	}
 
 	for _, l := range locals {
 		c := conns[l.IP]

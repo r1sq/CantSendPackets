@@ -307,6 +307,7 @@ const MESSAGES = {
 
     "err.proxy.connect": "Verbindung zum Proxy fehlgeschlagen",
     "err.peer.badAddress": "Das ist keine gültige IPv4-Adresse.",
+    "err.peer.thisPC": "Das ist eine Adresse dieses PCs.",
     "err.peer.probeFailed": "Die Anfrage konnte nicht gesendet werden.",
     "err.speed.connect": "{addr} nicht erreichbar. Vermutlich blockiert die Firewall auf dem anderen PC den Zugriff.",
     "err.speed.noAnswer": "{addr} antwortet nicht auf die Testanfrage.",
@@ -432,6 +433,7 @@ const MESSAGES = {
 
     "err.proxy.connect": "Couldn't connect to the proxy",
     "err.peer.badAddress": "That isn't a valid IPv4 address.",
+    "err.peer.thisPC": "That's an address of this PC.",
     "err.peer.probeFailed": "The request couldn't be sent.",
     "err.speed.connect": "Can't reach {addr}. The firewall on the other PC is probably blocking it.",
     "err.speed.noAnswer": "{addr} isn't answering the test request.",

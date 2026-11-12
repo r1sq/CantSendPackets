@@ -18,6 +18,17 @@ already on `main` (`make tag`), so not every version has to be released.
 
 Before 1.0.0, breaking changes bump the minor version instead of the major one.
 
+## [0.1.2] - 2026-11-12
+
+### Fixed
+- A second copy on the same PC, such as an older version left running, no longer shows up in the
+  speed test list. Searching for one of this PC's own addresses says so.
+- Starting the app while it's already open brings the open window forward instead of starting a
+  second copy. Other users on the same PC still get their own.
+
+### Changed
+- The README is a short landing page; the details moved to `docs/` and `CONTRIBUTING.md`.
+
 ## [0.1.1] - 2026-11-12
 
 ### Changed

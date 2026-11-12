@@ -207,6 +207,25 @@ func LocalAnnouncers() []peer.Local {
 	return out
 }
 
+// IsOwnAddress reports whether ip belongs to this PC, on any adapter.
+func IsOwnAddress(ip netip.Addr) bool {
+	if ip.IsLoopback() || ip.IsUnspecified() {
+		return true
+	}
+	list, err := adapter.List()
+	if err != nil {
+		return false
+	}
+	for _, ad := range list {
+		for _, v := range ad.IPv4 {
+			if v == ip {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // AllowPeer returns the filter for who may use discovery and the speed test. This
 // PC's subnets are cached briefly, because the filter runs for every packet and
 // connection from the network, which mustn't each cost a system call.

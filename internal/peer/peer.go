@@ -103,6 +103,26 @@ type Peer struct {
 type Table struct {
 	self  string
 	peers map[string]*Peer
+	// own is this PC's addresses. Another instance on the same PC, such as a
+	// second window or another user's session, isn't a peer: a speed test to it
+	// would never leave the machine.
+	own map[netip.Addr]bool
+}
+
+// SetOwn records this PC's addresses and drops any peer listed from one of them.
+// It reports whether the list changed.
+func (t *Table) SetOwn(ips []netip.Addr) (changed bool) {
+	t.own = make(map[netip.Addr]bool, len(ips))
+	for _, ip := range ips {
+		t.own[ip] = true
+	}
+	for id, p := range t.peers {
+		if t.own[p.IP] {
+			delete(t.peers, id)
+			changed = true
+		}
+	}
+	return changed
 }
 
 // NewTable creates a table that ignores its own instance's ID.
@@ -114,7 +134,7 @@ func NewTable(self string) *Table {
 // sender should get a reply. Replies are rate limited per peer, so a stream of
 // forged hellos can't be used to make this instance send a stream of packets.
 func (t *Table) Observe(h Hello, ip netip.Addr, now time.Time) (changed, reply bool) {
-	if h.ID == t.self {
+	if h.ID == t.self || t.own[ip] {
 		return false, false
 	}
 	p := t.peers[h.ID]
