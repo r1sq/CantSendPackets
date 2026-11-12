@@ -104,11 +104,13 @@ sleep 1
 # The cable runs in the switch's own namespace, where x1 and y1 are.
 "$bin/fakenet" loopcable -a x1 -b y1 -pps 1500 -for 60s >"$out/fakenet-loopcable.log" 2>&1 &
 pids+=($!)
-bg rogue storm -ip 10.99.0.66 -pps 5 -for 60s
-sleep 2
+# Probes first, on a quiet loop: background broadcasts multiply until they fill
+# the cable's limit, and then the cable drops the probes too.
 check loop-real-capture "problem loop.echo.h" .loop -checks loop
 # Without capture nothing is probed: the loop shows through the background
 # broadcasts it multiplies, as on a real network.
+bg rogue storm -ip 10.99.0.66 -pps 5 -for 60s
+sleep 2
 check loop-real-counters "problem loop.storm.h" .loop -checks loop -no-capture
 stop
 ip link del x0
