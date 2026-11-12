@@ -1,4 +1,4 @@
-//go:build windows
+//go:build windows || linux
 
 package main
 
@@ -89,7 +89,10 @@ func (a *App) shutdown(context.Context) {
 }
 
 // Npcap reports whether the deeper tests are available.
-func (a *App) Npcap() diag.NpcapStatus { return diag.Npcap() }
+func (a *App) Npcap() diag.CaptureStatus { return diag.Capture() }
+
+// Platform tells the frontend which texts and controls apply: "windows" or "linux".
+func (a *App) Platform() string { return goruntime.GOOS }
 
 // Adapters lists usable adapters, best first.
 func (a *App) Adapters() ([]adapter.Adapter, error) {
@@ -144,7 +147,7 @@ func (a *App) RunLoopCheck(index uint32) (loop.Report, error) {
 	if err != nil {
 		return loop.Report{}, err
 	}
-	return diag.RunLoop(a.ctx, ad), nil
+	return runLoop(a.ctx, ad), nil
 }
 
 // RunDHCPCheck looks for DHCP servers on the adapter's segment.
@@ -153,7 +156,7 @@ func (a *App) RunDHCPCheck(index uint32) (dhcp.Report, error) {
 	if err != nil {
 		return dhcp.Report{}, err
 	}
-	return diag.RunDHCP(a.ctx, ad), nil
+	return runDHCP(a.ctx, ad), nil
 }
 
 // OpenNpcapPage opens Npcap's download page. URLs are fixed here rather than taken
@@ -319,8 +322,13 @@ func (a *App) fetcher() *diag.UpdateFetcher {
 	return &diag.UpdateFetcher{Options: diag.Options{Override: a.settings.Override(), Auth: &a.auth}}
 }
 
+// assetName is this build's file in a release.
 func assetName() string {
-	return "CantSendPackets-windows-" + goruntime.GOARCH + ".exe"
+	name := "CantSendPackets-" + goruntime.GOOS + "-" + goruntime.GOARCH
+	if goruntime.GOOS == "windows" {
+		name += ".exe"
+	}
+	return name
 }
 
 // checkForUpdate looks for a release. A background check keeps quiet on failure, as

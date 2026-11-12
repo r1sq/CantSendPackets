@@ -20,6 +20,16 @@ jobs:
           go-version-file: go.mod
       - run: make test
       - run: make windows arm64 linux
+      - name: Linux window
+        # Builds against the system's GTK and WebKitGTK, then starts it on a
+        # virtual display: still running after 8 seconds means it came up.
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev xvfb
+          CGO_ENABLED=1 go vet -tags desktop,production,webkit2_41 .
+          make linux-gui
+          status=0
+          dbus-run-session -- xvfb-run -a timeout 8 build/CantSendPackets-linux-amd64 || status=$?
+          test "$status" -eq 124
       - name: Linux checks against a simulated network
         # Ubuntu blocks unprivileged user namespaces through AppArmor; the lab
         # needs them, and the runner is a throwaway VM.

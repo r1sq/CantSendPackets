@@ -8,7 +8,7 @@
 // Scenarios: healthy, proxy, proxywin, proxyauth, proxydown, pacbroken, rogue, loop,
 // down, basic, nopeers, hidden. Add &autorun to run both checks straight away, and
 // &hostile to put markup in a peer name and the rogue server's domain, which must
-// show as plain text.
+// show as plain text, and &platform=linux for the Linux texts.
 package main
 
 import (

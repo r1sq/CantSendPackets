@@ -23,6 +23,7 @@ import (
 	"github.com/r1sq/CantSendPackets/internal/peer"
 	"github.com/r1sq/CantSendPackets/internal/probe"
 	"github.com/r1sq/CantSendPackets/internal/proxy"
+	"github.com/r1sq/CantSendPackets/internal/update"
 	"github.com/r1sq/CantSendPackets/internal/verdict"
 )
 
@@ -249,6 +250,56 @@ func AllowPeer() func(netip.Addr) bool {
 	}
 }
 
+// UpdateFetcher downloads through whatever proxy this network needs, including one
+// that wants a login, since an update check behind a proxy is the common case here.
+type UpdateFetcher struct {
+	Options Options
+	mu      sync.Mutex
+	byHost  map[string]proxy.Result
+}
+
+func (f *UpdateFetcher) detect(rawURL string) proxy.Result {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return proxy.Result{}
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	// A PAC file answers per URL, and WPAD is slow, so this asks once per host.
+	if r, ok := f.byHost[u.Host]; ok {
+		return r
+	}
+	if f.byHost == nil {
+		f.byHost = map[string]proxy.Result{}
+	}
+	r := proxy.Detect([]string{rawURL}, f.Options.Override)
+	// Keyed by host from here on: later URLs on it share this one's route.
+	f.byHost[u.Host] = r
+	return r
+}
+
+// Get implements update.Fetcher.
+func (f *UpdateFetcher) Get(ctx context.Context, rawURL string, max int64) ([]byte, error) {
+	detected := f.detect(rawURL)
+	var route *url.URL
+	for _, list := range detected.Routes {
+		if len(list) > 0 {
+			route = list[0]
+			break
+		}
+	}
+	data, err := update.HTTPGet(ctx, rawURL, update.HTTPOptions{Proxy: route}, max)
+	if route == nil || !errors.Is(err, update.ErrProxyAuth) {
+		return data, err
+	}
+	auth := f.Options.Auth
+	if auth == nil {
+		auth = &Auth{}
+	}
+	user, password, trusted := auth.forHost(route.Host)
+	return fetchWithLogin(ctx, rawURL, route, proxy.LogonPolicy(detected.Source, route.Host, trusted), user, password, max)
+}
+
 // Auth holds what's known about proxy logins for this session. A typed password
 // lives only here, in memory, and is never written anywhere.
 type Auth struct {
@@ -351,7 +402,7 @@ func (r *router) webProbe(ctx context.Context, src netip.Addr, check probe.WebCh
 	r.authRejected = rejected && user != ""
 	// Only the full attempt counts: Windows' intranet default may decline a proxy
 	// that would accept the login once the user approves it.
-	r.windowsTried = rejected && user == "" && level == proxy.LogonAlways
+	r.windowsTried = windowsLogin && rejected && user == "" && level == proxy.LogonAlways
 	if !rejected {
 		switch {
 		case err != nil:

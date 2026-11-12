@@ -3,6 +3,7 @@
 (() => {
   const params = new URLSearchParams(location.search);
   const scenario = params.get("scenario") ?? "healthy";
+  const platform = params.get("platform") ?? "windows"; // "linux" shows the Linux texts
   const autorun = params.has("autorun");
   let seed = 7;
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -125,7 +126,10 @@
     WindowMinimise() {}, WindowToggleMaximise() {}, Quit() {},
   };
   window.go = { main: { App: {
-    Npcap: async () => (scenario === "basic" ? { available: false, version: "" } : { available: true, version: "Npcap version 1.80, based on libpcap version 1.10.5" }),
+    Platform: async () => platform,
+    Npcap: async () => (scenario === "basic" ? { available: false, version: "" }
+      : platform === "linux" ? { available: true, version: "AF_PACKET" }
+      : { available: true, version: "Npcap version 1.80, based on libpcap version 1.10.5" }),
     Adapters: async () => [adapter, wifi],
     StartMonitor: async (index) => {
       const emit = () => listeners.monitor?.({ adapterIndex: index, ...snapshots[scenario]() });

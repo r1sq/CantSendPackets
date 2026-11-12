@@ -1,5 +1,5 @@
 // Command genres writes the app's Windows resources (icon and manifest) as COFF
-// objects the Go linker picks up automatically. It's standard library only, so
+// objects the Go linker picks up automatically, and the icon as a PNG for Linux. It's standard library only, so
 // neither building the app nor regenerating its resources runs third-party code.
 //
 //	go run ./dev/genres
@@ -323,4 +323,13 @@ func main() {
 	section, relocs := buildSection(res)
 	writeCOFF("rsrc_windows_amd64.syso", machineAMD64, relAddr32NB, section, relocs)
 	writeCOFF("rsrc_windows_arm64.syso", machineARM64, relARMAddr, section, relocs)
+
+	// GTK takes the window icon as a PNG; 256 px also serves a .desktop entry.
+	var p bytes.Buffer
+	if err := png.Encode(&p, render(256)); err != nil {
+		log.Fatal(err)
+	}
+	if err := os.WriteFile("appicon.png", p.Bytes(), 0o644); err != nil {
+		log.Fatal(err)
+	}
 }

@@ -1,20 +1,16 @@
-//go:build windows
+//go:build windows || linux
 
-// Command CantSendPackets is a small Windows network diagnostics app.
+// Command CantSendPackets is a small network diagnostics app for Windows and Linux.
 package main
 
 import (
 	"embed"
 	"io/fs"
 	"log"
-	"os"
-	"strconv"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	wailswin "github.com/wailsapp/wails/v2/pkg/options/windows"
-	"golang.org/x/sys/windows"
 
 	"github.com/r1sq/CantSendPackets/internal/update"
 )
@@ -33,13 +29,16 @@ var version string
 
 func main() {
 	version = update.BuildVersion(sourceVersion, version)
+	if runPrivilegedCheck() {
+		return // ran one check with elevated rights for a window that asked; see main_linux.go
+	}
 	waitForPredecessor()
 	assets, err := fs.Sub(frontendFiles, "frontend")
 	if err != nil {
 		log.Fatal(err)
 	}
 	app := &App{}
-	err = wails.Run(&options.App{
+	opts := &options.App{
 		Title:            "CantSendPackets",
 		Width:            1120,
 		Height:           760,
@@ -51,35 +50,15 @@ func main() {
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,
 		Bind:             []any{app},
-		Windows:          &wailswin.Options{Theme: wailswin.Dark},
-		// One window per Windows session: starting it again brings that one
-		// forward. Other users on the same PC (a terminal server) get their own.
+		// One window per user session: starting it again brings that one forward.
+		// Other users on the same PC (a terminal server) get their own.
 		SingleInstanceLock: &options.SingleInstanceLock{
 			UniqueId:               "CantSendPackets-5d3f8c2a-7b14-4e9b-a0c6-1f2e8d9b4c71",
 			OnSecondInstanceLaunch: app.onSecondInstance,
 		},
-	})
-	if err != nil {
+	}
+	platformOptions(opts)
+	if err := wails.Run(opts); err != nil {
 		log.Fatal(err)
 	}
-}
-
-// waitForPredecessor lets the copy that just installed an update finish quitting, so
-// this one gets the speed test port and the single-instance lock. It starts
-// regardless if that takes too long, though while the old copy still holds the lock
-// this one then only brings its window forward.
-func waitForPredecessor() {
-	if len(os.Args) != 3 || os.Args[1] != waitPIDFlag {
-		return
-	}
-	pid, err := strconv.ParseUint(os.Args[2], 10, 32)
-	if err != nil {
-		return
-	}
-	h, err := windows.OpenProcess(windows.SYNCHRONIZE, false, uint32(pid))
-	if err != nil {
-		return // already gone
-	}
-	defer windows.CloseHandle(h)
-	windows.WaitForSingleObject(h, 30000)
 }

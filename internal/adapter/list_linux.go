@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
+	"unsafe"
 )
 
 // Where Linux keeps what Windows returns from one call. Variables, so tests can
@@ -31,6 +33,7 @@ func List() ([]Adapter, error) {
 	}
 	routes := readRoutes(procNetRoute)
 	dns, suffix := readResolv()
+	dynamic := dynamicIPv4()
 	var out []Adapter
 	for _, ifc := range ifaces {
 		if ifc.Flags&net.FlagUp == 0 || ifc.Flags&net.FlagLoopback != 0 {
@@ -87,6 +90,10 @@ func List() ([]Adapter, error) {
 		if server, ok := leaseServer(ifc.Name, ifc.Index); ok {
 			ad.DHCPEnabled = true
 			ad.DHCPServer = LeaseServer(server)
+		} else if dynamic[ifc.Index] {
+			// A DHCP client whose lease files aren't known here: the address
+			// still says it was leased, though not from which server.
+			ad.DHCPEnabled = true
 		}
 		out = append(out, ad)
 	}
@@ -157,6 +164,31 @@ func speed(name string) uint64 {
 		}
 	}
 	return 0
+}
+
+// dynamicIPv4 returns the interfaces holding an IPv4 address with a finite
+// lifetime, which is how the kernel marks a leased one: static addresses are
+// IFA_F_PERMANENT.
+func dynamicIPv4() map[int]bool {
+	out := map[int]bool{}
+	rib, err := syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_INET)
+	if err != nil {
+		return out
+	}
+	msgs, err := syscall.ParseNetlinkMessage(rib)
+	if err != nil {
+		return out
+	}
+	for _, m := range msgs {
+		if m.Header.Type != syscall.RTM_NEWADDR || len(m.Data) < syscall.SizeofIfAddrmsg {
+			continue
+		}
+		ifa := (*syscall.IfAddrmsg)(unsafe.Pointer(&m.Data[0]))
+		if ifa.Flags&syscall.IFA_F_PERMANENT == 0 {
+			out[int(ifa.Index)] = true
+		}
+	}
+	return out
 }
 
 type route struct {

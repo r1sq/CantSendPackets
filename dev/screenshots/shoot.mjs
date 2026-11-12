@@ -105,6 +105,8 @@ try {
     query: "scenario=healthy&autorun&fastspeed", card: "speed-card", height: 1500,
     steps: async () => { await sleep(1000); await click(button("Speed test")); await sleep(2500); },
   });
+  // Linux without root: the texts that explain the password prompt.
+  await shot("linux", { lang: "de", query: "scenario=basic&platform=linux&autorun", settle: 4000 });
   await shot("proxy-login", {
     query: "scenario=proxyauth",
     steps: async () => { await sleep(3000); await click(`document.getElementById("hero-action")`); },

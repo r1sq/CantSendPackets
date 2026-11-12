@@ -3,7 +3,7 @@
 [![CI](https://github.com/r1sq/CantSendPackets/actions/workflows/ci.yml/badge.svg)](https://github.com/r1sq/CantSendPackets/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/r1sq/CantSendPackets)](https://github.com/r1sq/CantSendPackets/releases/latest)
 
-**"What's wrong with this network?"**, answered by a small Windows app. Start it on the PC
+**"What's wrong with this network?"**, answered by a small app for Windows and Linux. Start it on the PC
 with the problem and it tells you, in plain language, where the path breaks and what to look at.
 
 ![CantSendPackets showing a healthy connection, its loop and DHCP checks](docs/screenshots/overview.png)
@@ -35,8 +35,8 @@ can [update itself](docs/updates.md).
 Windows 10 or 11 with WebView2 (included in Windows 11 and current Windows 10). The files aren't
 code-signed, so SmartScreen warns on first start: *More info*, then *Run anyway*.
 
-On Linux there's `cspcheck`, the same checks without a window, which also makes a good permanent
-speed test endpoint: see [Linux](docs/linux.md).
+The app also runs on Linux, and `cspcheck`, the checks without a window, makes a good permanent
+speed test endpoint on a server or Raspberry Pi: see [Linux](docs/linux.md).
 
 [Npcap](https://npcap.com/#download) is optional and makes the loop and DHCP checks stronger.
 Install it yourself; its licence doesn't allow bundling it.
@@ -48,7 +48,7 @@ Install it yourself; its licence doesn't allow bundling it.
 - [Proxies](docs/proxies.md): detection, and when the Windows login is used
 - [Speed test](docs/speed-test.md): discovery, firewall, and who can start a test
 - [Updates](docs/updates.md): how releases are signed and checked
-- [Linux](docs/linux.md): `cspcheck` on Linux, permissions, and a speed test endpoint as a service
+- [Linux](docs/linux.md): the app and `cspcheck` on Linux, the password prompt, and a speed test endpoint
 - [Changelog](CHANGELOG.md)
 - [Building and contributing](CONTRIBUTING.md)
 

@@ -2,9 +2,7 @@ package diag
 
 import (
 	"context"
-	"errors"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/r1sq/CantSendPackets/internal/adapter"
@@ -55,55 +53,13 @@ func openCapture(a adapter.Adapter, purpose capturePurpose) (frames, error) {
 // pingAvailable: Windows' ICMP API needs no privileges.
 func pingAvailable() bool { return true }
 
-// UpdateFetcher downloads through whatever proxy this network needs, including one
-// that wants a login, since an update check behind a proxy is the common case here.
-type UpdateFetcher struct {
-	Options Options
-	mu      sync.Mutex
-	byHost  map[string]proxy.Result
-}
+// windowsLogin: WinHTTP can answer a proxy with the Windows login.
+const windowsLogin = true
 
-func (f *UpdateFetcher) detect(rawURL string) proxy.Result {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return proxy.Result{}
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	// A PAC file answers per URL, and WPAD is slow, so this asks once per host.
-	if r, ok := f.byHost[u.Host]; ok {
-		return r
-	}
-	if f.byHost == nil {
-		f.byHost = map[string]proxy.Result{}
-	}
-	r := proxy.Detect([]string{rawURL}, f.Options.Override)
-	// Keyed by host from here on: later URLs on it share this one's route.
-	f.byHost[u.Host] = r
-	return r
-}
-
-// Get implements update.Fetcher.
-func (f *UpdateFetcher) Get(ctx context.Context, rawURL string, max int64) ([]byte, error) {
-	detected := f.detect(rawURL)
-	var route *url.URL
-	for _, list := range detected.Routes {
-		if len(list) > 0 {
-			route = list[0]
-			break
-		}
-	}
-	data, err := update.HTTPGet(ctx, rawURL, update.HTTPOptions{Proxy: route}, max)
-	if route == nil || !errors.Is(err, update.ErrProxyAuth) {
-		return data, err
-	}
-	auth := f.Options.Auth
-	if auth == nil {
-		auth = &Auth{}
-	}
-	user, password, trusted := auth.forHost(route.Host)
+// fetchWithLogin downloads through a proxy that asked for a login, with WinHTTP.
+func fetchWithLogin(_ context.Context, rawURL string, route *url.URL, level proxy.LogonLevel, user, password string, max int64) ([]byte, error) {
 	res, err := proxy.Fetch(proxy.FetchOptions{
-		URL: rawURL, ProxyHost: route.Host, Level: proxy.LogonPolicy(detected.Source, route.Host, trusted),
+		URL: rawURL, ProxyHost: route.Host, Level: level,
 		User: user, Password: password, Timeout: 2 * time.Minute, FollowRedirects: true, MaxBody: int(max) + 1,
 	})
 	if err != nil {

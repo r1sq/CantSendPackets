@@ -21,9 +21,12 @@ Before 1.0.0, breaking changes bump the minor version instead of the major one.
 ## [0.2.0] - 2026-11-12
 
 ### Added
+- The app for Linux (amd64 and arm64), with the same window, checks, speed test and updates. The
+  loop and DHCP checks ask for the administrator password through polkit and run just that
+  check as root. See `docs/linux.md`.
 - `cspcheck` for Linux (amd64 and arm64): connectivity, loop and DHCP checks, discovery and the
   speed test endpoint, with raw capture through AF_PACKET when run as root or with
-  CAP_NET_RAW. See `docs/linux.md`.
+  CAP_NET_RAW.
 - `cspcheck -no-capture`, to run the checks as without Npcap or root.
 - `make netlab`: the Linux checks against a simulated network with a rogue DHCP server and a real
   loop, run in CI.

@@ -36,6 +36,7 @@ function storedLang() {
 
 const state = {
   lang: storedLang(),
+  platform: "windows", // replaced from the backend at start; picks text variants and controls
   api: null,
   adapters: [],
   selected: null,   // adapter index
@@ -62,7 +63,10 @@ function t(msg, args) {
   const key = typeof msg === "string" ? msg : msg.key;
   if (!key) return "";
   const values = (typeof msg === "string" ? args : msg.args) ?? {};
-  const template = MESSAGES[state.lang][key] ?? MESSAGES.en[key] ?? key;
+  // A text can have a variant for a platform, such as "footer.basic.linux".
+  const variant = state.platform === "windows" ? null : `${key}.${state.platform}`;
+  const template = (variant && (MESSAGES[state.lang][variant] ?? MESSAGES.en[variant]))
+    ?? MESSAGES[state.lang][key] ?? MESSAGES.en[key] ?? key;
   return template.replace(/\{(\w+)\}/g, (whole, name) => {
     const v = values[name];
     if (v == null) return whole;
@@ -581,7 +585,10 @@ function renderLoopWarning() {
     verdictIcon("warn"),
     h("p", {},
       h("span", { textContent: `${t("check.loop.noNpcap")} ` }),
-      h("button", { class: "link-btn", textContent: t("footer.getNpcap"), on: { click: () => state.api.OpenNpcapPage() } }))));
+      // On Linux there's nothing to install: the check asks for the password.
+      state.platform === "windows"
+        ? h("button", { class: "link-btn", textContent: t("footer.getNpcap"), on: { click: () => state.api.OpenNpcapPage() } })
+        : null)));
 }
 
 function resetChecks() {
@@ -661,7 +668,7 @@ function renderLoopResult(r) {
       h("span", { class: "val", textContent: t("stat.frameCount", { n: x.frames }) })))));
   }
   for (const n of r.notes ?? []) {
-    if (n.key === "loop.note.noNpcap") continue; // the card's warning already says this
+    if (n.key === "loop.note.noNpcap" || n.key === "loop.note.noRawAccess") continue; // the card's warning already says this
     out.push(h("p", { class: "note", textContent: t(n) }));
   }
   out.push(h("p", { class: "method", textContent: t("stat.method", { method: t(r.method), seconds: Math.round(r.durationSec) }) }));
@@ -937,12 +944,14 @@ function openLogin() {
     h("h2", { textContent: t("login.title") }),
     h("p", { textContent: t("login.intro", { proxy: p.address }) }),
     p.authRejected ? dialogError({ key: "summary.proxyAuthRejected.d", args: { proxy: p.address } }) : null,
-    p.windowsLoginOffered
-      ? dialogError("login.windowsFailed")
-      : h("div", { class: "field" },
-          h("button", { class: "run-btn", type: "button", textContent: t("login.useWindows"), on: { click: useWindows } }),
-          h("p", { class: "hint", textContent: t("login.windowsHint") })),
-    h("p", { class: "divider", textContent: t("login.orTyped") }),
+    // Only Windows can answer a proxy with the account the user is logged in with.
+    state.platform !== "windows" ? null
+      : p.windowsLoginOffered
+        ? dialogError("login.windowsFailed")
+        : h("div", { class: "field" },
+            h("button", { class: "run-btn", type: "button", textContent: t("login.useWindows"), on: { click: useWindows } }),
+            h("p", { class: "hint", textContent: t("login.windowsHint") })),
+    state.platform !== "windows" ? null : h("p", { class: "divider", textContent: t("login.orTyped") }),
     field("login.user", user),
     field("login.password", password),
     h("p", { class: "hint", textContent: t("login.typedHint") }),
@@ -961,7 +970,9 @@ function renderStatusBar() {
     ? [verdictIcon("ok", t("verdict.ok")), h("span", { class: "primary", textContent: t("footer.full", { version: npcap.version }) })]
     : [verdictIcon("unknown", t("verdict.unknown")),
        h("span", { class: "primary", textContent: t("footer.basic") }),
-       h("button", { class: "link-btn", textContent: t("footer.getNpcap"), on: { click: () => state.api.OpenNpcapPage() } })];
+       state.platform === "windows"
+         ? h("button", { class: "link-btn", textContent: t("footer.getNpcap"), on: { click: () => state.api.OpenNpcapPage() } })
+         : null].filter(Boolean);
   const about = h("span", { class: "about" },
     ...(state.update?.current ? [h("span", { textContent: `${state.update.current} ·` })] : []),
     h("button", { class: "link-btn", textContent: "github.com/r1sq/CantSendPackets", on: { click: () => state.api.OpenRepoPage() } }));
@@ -1056,6 +1067,8 @@ async function boot() {
     await new Promise((r) => setTimeout(r, 25));
   }
   state.api = window.go.main.App;
+  try { state.platform = await state.api.Platform(); } catch { /* an older backend is Windows */ }
+  document.documentElement.dataset.platform = state.platform;
   wireShell();
   applyStaticText();
   renderStatusBar();
