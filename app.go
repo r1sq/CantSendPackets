@@ -147,7 +147,7 @@ func (a *App) RunLoopCheck(index uint32) (loop.Report, error) {
 	if err != nil {
 		return loop.Report{}, err
 	}
-	return runLoop(a.ctx, ad), nil
+	return runLoop(a.ctx, ad, a.checkPhase("loop")), nil
 }
 
 // RunDHCPCheck looks for DHCP servers on the adapter's segment.
@@ -156,7 +156,15 @@ func (a *App) RunDHCPCheck(index uint32) (dhcp.Report, error) {
 	if err != nil {
 		return dhcp.Report{}, err
 	}
-	return runDHCP(a.ctx, ad), nil
+	return runDHCP(a.ctx, ad, a.checkPhase("dhcp")), nil
+}
+
+// checkPhase reports a check waiting for a password ("auth") or running
+// ("running") as a "check-phase" event, where that's a separate step (Linux).
+func (a *App) checkPhase(check string) func(string) {
+	return func(phase string) {
+		runtime.EventsEmit(a.ctx, "check-phase", map[string]string{"check": check, "phase": phase})
+	}
 }
 
 // OpenNpcapPage opens Npcap's download page. URLs are fixed here rather than taken

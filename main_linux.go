@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
@@ -69,6 +72,8 @@ func runPrivilegedCheck() bool {
 	if err != nil {
 		os.Exit(3)
 	}
+	// Tells the window the password step is over and the check itself is running.
+	fmt.Fprintln(os.Stderr, "started")
 	var report any
 	switch os.Args[2] {
 	case "loop":
@@ -86,7 +91,9 @@ func runPrivilegedCheck() bool {
 
 // elevated runs one check through pkexec, which asks for an administrator's
 // password. It reports false if that isn't possible or the user declines.
-func elevated(ctx context.Context, check string, index uint32, out any) bool {
+// phase hears "auth" while the password prompt is up and "running" once the
+// check has started, so the window doesn't show a check that isn't running yet.
+func elevated(ctx context.Context, check string, index uint32, out any, phase func(string)) bool {
 	pkexec, err := exec.LookPath("pkexec")
 	if err != nil {
 		return false
@@ -95,33 +102,53 @@ func elevated(ctx context.Context, check string, index uint32, out any) bool {
 	if err != nil {
 		return false
 	}
-	b, err := exec.CommandContext(ctx, pkexec, exe, privilegedFlag, check, strconv.FormatUint(uint64(index), 10)).Output()
+	cmd := exec.CommandContext(ctx, pkexec, exe, privilegedFlag, check, strconv.FormatUint(uint64(index), 10))
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	stderr, err := cmd.StderrPipe()
 	if err != nil {
+		return false
+	}
+	phase("auth")
+	if err := cmd.Start(); err != nil {
+		return false
+	}
+	go func() {
+		sc := bufio.NewScanner(stderr)
+		for sc.Scan() {
+			if sc.Text() == "started" {
+				phase("running")
+			}
+		}
+	}()
+	if err := cmd.Wait(); err != nil {
 		return false // declined (126), no authentication agent (127), or failed
 	}
-	return json.Unmarshal(b, out) == nil
+	return json.Unmarshal(stdout.Bytes(), out) == nil
 }
 
 // runLoop uses raw capture directly if this process has it (root, or setcap),
 // otherwise asks for it, and falls back to counters if that's declined.
-func runLoop(ctx context.Context, ad adapter.Adapter) loop.Report {
+func runLoop(ctx context.Context, ad adapter.Adapter, phase func(string)) loop.Report {
 	if diag.Capture().Available {
 		return diag.RunLoop(ctx, ad)
 	}
 	var r loop.Report
-	if elevated(ctx, "loop", ad.Index, &r) {
+	if elevated(ctx, "loop", ad.Index, &r, phase) {
 		return r
 	}
+	phase("running")
 	return diag.RunLoop(ctx, ad)
 }
 
-func runDHCP(ctx context.Context, ad adapter.Adapter) dhcp.Report {
+func runDHCP(ctx context.Context, ad adapter.Adapter, phase func(string)) dhcp.Report {
 	if diag.Capture().Available {
 		return diag.RunDHCP(ctx, ad)
 	}
 	var r dhcp.Report
-	if elevated(ctx, "dhcp", ad.Index, &r) {
+	if elevated(ctx, "dhcp", ad.Index, &r, phase) {
 		return r
 	}
+	phase("running")
 	return diag.RunDHCP(ctx, ad)
 }

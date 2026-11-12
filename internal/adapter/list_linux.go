@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"bufio"
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"net"
@@ -11,7 +12,10 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
+
+	"github.com/godbus/dbus/v5"
 )
 
 // Where Linux keeps what Windows returns from one call. Variables, so tests can
@@ -33,6 +37,7 @@ func List() ([]Adapter, error) {
 	}
 	routes := readRoutes(procNetRoute)
 	dns, suffix := readResolv()
+	perLink, global, haveResolved := resolvedDNS()
 	dynamic := dynamicIPv4()
 	var out []Adapter
 	for _, ifc := range ifaces {
@@ -77,7 +82,12 @@ func List() ([]Adapter, error) {
 				ad.Metric = r.metric
 			}
 		}
-		if len(ad.IPv4) > 0 {
+		switch {
+		case haveResolved:
+			// systemd-resolved knows which servers belong to which link, as
+			// Windows does; a link with none of its own uses the global ones.
+			ad.DNS = append(append([]netip.Addr{}, perLink[ifc.Index]...), global...)
+		case len(ad.IPv4) > 0:
 			ad.DNS = dns
 		}
 		ad.Kind = kind(ifc.Name, len(ad.Gateways) > 0)
@@ -164,6 +174,51 @@ func speed(name string) uint64 {
 		}
 	}
 	return 0
+}
+
+// resolvedDNS asks systemd-resolved for its DNS servers per link (index 0 is
+// global). ok is false if resolved isn't running, as in many containers; then
+// resolv.conf is all there is.
+func resolvedDNS() (perLink map[int][]netip.Addr, global []netip.Addr, ok bool) {
+	conn, err := dbus.SystemBusPrivate()
+	if err != nil {
+		return nil, nil, false
+	}
+	defer conn.Close()
+	if err := conn.Auth(nil); err != nil {
+		return nil, nil, false
+	}
+	if err := conn.Hello(); err != nil {
+		return nil, nil, false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	var v dbus.Variant
+	obj := conn.Object("org.freedesktop.resolve1", "/org/freedesktop/resolve1")
+	if err := obj.CallWithContext(ctx, "org.freedesktop.DBus.Properties.Get", 0, "org.freedesktop.resolve1.Manager", "DNS").Store(&v); err != nil {
+		return nil, nil, false
+	}
+	var entries []struct {
+		Ifindex int32
+		Family  int32
+		Address []byte
+	}
+	if err := dbus.Store([]any{v.Value()}, &entries); err != nil {
+		return nil, nil, false
+	}
+	perLink = map[int][]netip.Addr{}
+	for _, e := range entries {
+		ip, valid := netip.AddrFromSlice(e.Address)
+		if !valid {
+			continue
+		}
+		if e.Ifindex == 0 {
+			global = append(global, ip)
+		} else {
+			perLink[int(e.Ifindex)] = append(perLink[int(e.Ifindex)], ip)
+		}
+	}
+	return perLink, global, true
 }
 
 // dynamicIPv4 returns the interfaces holding an IPv4 address with a finite

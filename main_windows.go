@@ -42,5 +42,11 @@ func waitForPredecessor() {
 	windows.WaitForSingleObject(h, 30000)
 }
 
-func runLoop(ctx context.Context, ad adapter.Adapter) loop.Report { return diag.RunLoop(ctx, ad) }
-func runDHCP(ctx context.Context, ad adapter.Adapter) dhcp.Report { return diag.RunDHCP(ctx, ad) }
+// Checks start at once on Windows: Npcap needs no password, so there's no phase to report.
+func runLoop(ctx context.Context, ad adapter.Adapter, _ func(string)) loop.Report {
+	return diag.RunLoop(ctx, ad)
+}
+
+func runDHCP(ctx context.Context, ad adapter.Adapter, _ func(string)) dhcp.Report {
+	return diag.RunDHCP(ctx, ad)
+}

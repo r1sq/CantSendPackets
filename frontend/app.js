@@ -44,6 +44,7 @@ const state = {
   runToken: { loop: 0, dhcp: 0 },
   reports: { loop: null, dhcp: null }, // kept to re-render when the language changes
   running: { loop: false, dhcp: false },
+  authWait: { loop: false, dhcp: false }, // waiting for the administrator password
   lastRun: { loop: null, dhcp: null },
   rows: new Map(),
   snapshot: null,
@@ -530,7 +531,9 @@ const CHECKS = {
   },
 };
 
-function runningBody(c) {
+function runningBody(c, key) {
+  // Waiting for the administrator password (Linux): nothing runs yet, so no bar.
+  if (state.authWait[key]) return [h("p", { class: "blurb", textContent: t("check.waitingAuth") })];
   const bar = h("i", {});
   bar.style.setProperty("--dur", `${c.seconds}s`);
   return [h("p", { class: "blurb", textContent: t("check.testing", { seconds: c.seconds }) }), h("div", { class: "progress", role: "progressbar" }, bar)];
@@ -546,7 +549,7 @@ function renderCheck(key) {
     existing.textContent = t("check.running");
     $(`${key}-title`).textContent = t(c.titleKey);
     const text = $(`body-${key}`).querySelector(".blurb");
-    if (text) text.textContent = t("check.testing", { seconds: c.seconds });
+    if (text) text.textContent = state.authWait[key] ? t("check.waitingAuth") : t("check.testing", { seconds: c.seconds });
     renderLoopWarning();
     return;
   }
@@ -556,7 +559,7 @@ function renderCheck(key) {
   if (state.lastRun[key]) button.title = t("check.lastRun", { time: state.lastRun[key] });
 
   let content;
-  if (running) content = runningBody(c);
+  if (running) content = runningBody(c, key);
   else if (report?.failed) content = [resultHead("unknown", "check.failed", { key: "err.raw", args: { text: report.failed } })];
   else if (report) content = c.render(report);
   else content = [h("p", { class: "blurb", textContent: t(c.blurbKey) })];
@@ -612,10 +615,21 @@ function redrawCheck(key) {
   renderCheck(key);
 }
 
+// A check that needs the administrator password reports when it's waiting for
+// it and when it really starts; the card is rebuilt so the bar starts then.
+function onCheckPhase({ check, phase }) {
+  if (!state.running[check]) return;
+  const waiting = phase === "auth";
+  if (state.authWait[check] === waiting) return;
+  state.authWait[check] = waiting;
+  redrawCheck(check);
+}
+
 async function runCheck(key) {
   const c = CHECKS[key];
   const token = ++state.runToken[key];
   state.running[key] = true;
+  state.authWait[key] = false;
   state.reports[key] = null;
   redrawCheck(key);
 
@@ -627,6 +641,7 @@ async function runCheck(key) {
   }
   if (token !== state.runToken[key]) return; // adapter changed while this was running
   state.running[key] = false;
+  state.authWait[key] = false;
   state.reports[key] = report;
   state.lastRun[key] = new Date().toLocaleTimeString(state.lang, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   redrawCheck(key);
@@ -1048,6 +1063,7 @@ function wireShell() {
   rt.EventsOn("speed-progress", onSpeedProgress);
   rt.EventsOn("speed-incoming", onSpeedIncoming);
   rt.EventsOn("update", onUpdate);
+  rt.EventsOn("check-phase", onCheckPhase);
 }
 
 function restartMonitor() {

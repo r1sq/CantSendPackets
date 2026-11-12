@@ -99,6 +99,7 @@ const MESSAGES = {
     "check.again": "Erneut prüfen",
     "check.lastRun": "Zuletzt um {time}",
     "check.testing": "Prüfung läuft, etwa {seconds} Sekunden…",
+    "check.waitingAuth": "Wartet auf das Administratorpasswort…",
     "check.failed": "Prüfung fehlgeschlagen",
 
     "stat.rate": "Broadcast-Rate",
@@ -557,6 +558,7 @@ const MESSAGES = {
     "check.again": "Run again",
     "check.lastRun": "Last run at {time}",
     "check.testing": "Testing for about {seconds} seconds…",
+    "check.waitingAuth": "Waiting for the administrator password…",
     "check.failed": "Check failed",
 
     "stat.rate": "Broadcast rate",
